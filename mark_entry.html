@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Enter Marks | Grade 7C System</title>
+    <style>
+        :root { 
+            --primary: #2c3e50; --accent: #3498db; --success: #27ae60; 
+            --danger: #e74c3c; --warning: #f39c12; --light: #f4f7f6; 
+        }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--light); margin: 0; display: flex; }
+        
+        .sidebar { position: fixed; left: -260px; top: 0; height: 100%; width: 250px; background: var(--primary); color: white; transition: 0.3s; z-index: 100; padding-top: 60px; }
+        .sidebar.active { left: 0; }
+        .sidebar ul { list-style: none; padding: 0; }
+        .sidebar li a { padding: 15px 25px; color: white; text-decoration: none; display: block; border-bottom: 1px solid #34495e; }
+        .sidebar li a:hover { background: var(--accent); }
+        .menu-toggle { position: fixed; top: 20px; left: 20px; z-index: 101; background: var(--primary); color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; }
+
+        .content { flex: 1; padding: 40px; margin-left: 0; transition: 0.3s; }
+        .sidebar.active ~ .content { margin-left: 250px; }
+        .container { max-width: 1100px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        
+        .header-flex { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .stats-bar { display: flex; gap: 20px; background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: bold; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { background: var(--primary); color: white; padding: 12px; text-align: left; }
+        td { padding: 10px; border-bottom: 1px solid #eee; }
+        
+        input[type="number"] { width: 70px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; text-align: center; }
+        .btn-save { background: var(--success); color: white; padding: 12px 25px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .grade-badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; }
+    </style>
+</head>
+<body>
+
+    <button class="menu-toggle" onclick="toggleSidebar()">☰ Menu</button>
+    <nav class="sidebar" id="sidebar">
+        <ul>
+            <li><a href="dashboard.html">🏠 Dashboard</a></li>
+                <li><a href="enrollment.html">👥 Grade 7 Enrollment</a></li>
+                <li><a href="daily_register.html">📝 Daily Register</a></li>
+                <li><a href="mark_entry.html">📊 Enter Marks 2 Subjects</a></li>
+                <li><a href="view_marks.html">📜 View Results 2 Subjects</a></li>
+                <li><a href="daily_attendance_list.html" style="background: #34495e;">📂 Termly Attendance</a></li>
+                <li><a href="mark_entry_all.html">📂 Enter All Subjects</a></li>
+                <li><a href="all_subject_results.html">📂 View All Subjects</a></li>
+                <li><a href="term_attendance.html">📂 Term Attendance</a></li>
+                <li><a href="#" onclick="logout()" style="color: var(--danger);">🚪 Logout</a></li>
+        </ul>
+    </nav>
+
+    <main class="content">
+        <div class="container">
+            <div class="header-flex">
+                <h1>Academic Mark Entry</h1>
+                <button class="btn-save" onclick="saveAllMarks()">💾 Save All Marks</button>
+            </div>
+
+            <div class="stats-bar">
+                <span>Class: Grade 7C</span>
+                <span id="mean-display">Class Mean: 0%</span>
+            </div>
+
+            <table id="marks-table">
+                <thead>
+                    <tr>
+                        <th>Learner Name</th>
+                        <th>Maths (100)</th>
+                        <th>Z.L (100)</th>
+                        <th>Avg %</th>
+                        <th>Grade</th>
+                    </tr>
+                </thead>
+                <tbody id="marks-body"></tbody>
+            </table>
+        </div>
+    </main>
+
+    <script>
+        let students = JSON.parse(localStorage.getItem('grade7C_data')) || [];
+
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('active'); }
+
+        function calculateGrade(score) {
+            if (score >= 85) return { g: 'A', c: '#27ae60' };
+            if (score >= 70) return { g: 'B', c: '#3498db' };
+            if (score >= 50) return { g: 'C', c: '#f39c12' };
+            if (score >= 40) return { g: 'D', c: '#e67e22' };
+            return { g: 'E', c: '#e74c3c' };
+        }
+
+        function updateRow(id) {
+            const maths = parseFloat(document.getElementById(`maths-${id}`).value) || 0;
+            const zl = parseFloat(document.getElementById(`zl-${id}`).value) || 0;
+            
+            const avg = ((maths + zl) / 2).toFixed(1);
+            document.getElementById(`avg-${id}`).innerText = avg + "%";
+            
+            const gradeInfo = calculateGrade(avg);
+            const gradeEl = document.getElementById(`grade-${id}`);
+            gradeEl.innerText = gradeInfo.g;
+            gradeEl.style.backgroundColor = gradeInfo.c;
+            gradeEl.style.color = "white";
+            gradeEl.className = "grade-badge";
+            
+            updateClassMean();
+        }
+
+        function updateClassMean() {
+            let total = 0;
+            let count = 0;
+            students.forEach(s => {
+                const maths = parseFloat(document.getElementById(`maths-${s.id}`).value) || 0;
+                const zl = parseFloat(document.getElementById(`zl-${s.id}`).value) || 0;
+                total += (maths + zl) / 2;
+                count++;
+            });
+            const mean = count ? (total / count).toFixed(2) : 0;
+            document.getElementById('mean-display').innerText = `Class Mean: ${mean}%`;
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('marks-body');
+            tbody.innerHTML = students.map(s => {
+                const m = s.marks || { maths: 0, zl: 0 };
+                const avg = ((parseFloat(m.maths) + parseFloat(m.zl)) / 2 || 0).toFixed(1);
+                const grade = calculateGrade(avg);
+                return `
+                    <tr>
+                        <td><strong>${s.name}</strong></td>
+                        <td><input type="number" id="maths-${s.id}" value="${m.maths || 0}" oninput="updateRow(${s.id})"></td>
+                        <td><input type="number" id="zl-${s.id}" value="${m.zl || 0}" oninput="updateRow(${s.id})"></td>
+                        <td id="avg-${s.id}">${avg}%</td>
+                        <td><span id="grade-${s.id}" class="grade-badge" style="background:${grade.c}; color:white;">${grade.g}</span></td>
+                    </tr>
+                `;
+            }).join('');
+            updateClassMean();
+        }
+
+        function saveAllMarks() {
+            students.forEach(s => {
+                s.marks = {
+                    maths: document.getElementById(`maths-${s.id}`).value,
+                    zl: document.getElementById(`zl-${s.id}`).value
+                };
+            });
+            localStorage.setItem('grade7C_data', JSON.stringify(students));
+            alert("All marks saved successfully!");
+        }
+
+        window.onload = renderTable;
+    </script>
+</body>
+</html>

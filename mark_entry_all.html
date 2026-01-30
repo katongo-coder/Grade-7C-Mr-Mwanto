@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Enter All Marks | Grade 7C System</title>
+    <style>
+        :root { 
+            --primary: #2c3e50; --accent: #3498db; --success: #27ae60; 
+            --danger: #e74c3c; --warning: #f39c12; --light: #f4f7f6; 
+        }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--light); margin: 0; display: flex; }
+        
+        /* Sidebar Styles */
+        .sidebar { position: fixed; left: -260px; top: 0; height: 100%; width: 250px; background: var(--primary); color: white; transition: 0.3s; z-index: 100; padding-top: 60px; }
+        .sidebar.active { left: 0; }
+        .sidebar ul { list-style: none; padding: 0; }
+        .sidebar li a { padding: 15px 25px; color: white; text-decoration: none; display: block; border-bottom: 1px solid #34495e; }
+        .sidebar li a:hover { background: var(--accent); }
+        .menu-toggle { position: fixed; top: 20px; left: 20px; z-index: 101; background: var(--primary); color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; }
+
+        .content { flex: 1; padding: 20px; transition: 0.3s; width: 100%; margin-left: 0; }
+        .sidebar.active ~ .content { margin-left: 250px; }
+        
+        .container { max-width: 1400px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); overflow-x: auto; }
+        
+        .header-flex { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .mean-card { background: var(--primary); color: white; padding: 10px 20px; border-radius: 8px; font-weight: bold; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.9em; }
+        th { background: #f8f9fa; color: var(--primary); padding: 12px; border: 1px solid #dee2e6; text-align: center; }
+        td { padding: 8px; border: 1px solid #dee2e6; text-align: center; }
+        
+        input[type="number"] { width: 60px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; text-align: center; font-weight: bold; }
+        input:focus { border-color: var(--accent); outline: none; background: #fffde7; }
+
+        .grade-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.85em; font-weight: bold; min-width: 30px; display: inline-block; }
+        .save-btn { background: var(--success); color: white; padding: 12px 30px; border: none; border-radius: 5px; cursor: pointer; font-size: 1em; font-weight: bold; transition: 0.3s; }
+        .save-btn:hover { background: #219150; transform: translateY(-2px); }
+        
+        .name-cell { text-align: left; font-weight: bold; color: var(--primary); min-width: 180px; }
+        .total-cell { background: #edf2f7; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <button class="menu-toggle" onclick="toggleSidebar()">☰ Menu</button>
+    <nav class="sidebar" id="sidebar">
+        <ul>
+            <li><a href="dashboard.html">🏠 Dashboard</a></li>
+                <li><a href="enrollment.html">👥 Grade 7 Enrollment</a></li>
+                <li><a href="daily_register.html">📝 Daily Register</a></li>
+                <li><a href="mark_entry.html">📊 Enter Marks 2 Subjects</a></li>
+                <li><a href="view_marks.html">📜 View Results 2 Subjects</a></li>
+                <li><a href="daily_attendance_list.html" style="background: #34495e;">📂 Termly Attendance</a></li>
+                <li><a href="mark_entry_all.html">📂 Enter All Subjects</a></li>
+                <li><a href="all_subject_results.html">📂 View All Subjects</a></li>
+                <li><a href="term_attendance.html">📂 Term Attendance</a></li>
+                <li><a href="#" onclick="logout()" style="color: var(--danger);">🚪 Logout</a></li>
+        </ul>
+    </nav>
+
+    <main class="content">
+        <div class="container">
+            <div class="header-flex">
+                <h1>Batch Mark Entry (All Subjects)</h1>
+                <div class="mean-card" id="mean-display">Class Overall Mean: 0%</div>
+            </div>
+
+            <table id="marks-table">
+                <thead>
+                    <tr>
+                        <th class="name-cell">Learner Name</th>
+                        <th>Math</th>
+                        <th>Sci</th>
+                        <th>Tech</th>
+                        <th>Eng</th>
+                        <th>H.E</th>
+                        <th>S.S</th>
+                        <th>Arts</th>
+                        <th>Z/L</th>
+                        <th class="total-cell">Total</th>
+                        <th>Grade</th>
+                    </tr>
+                </thead>
+                <tbody id="marks-body">
+                    </tbody>
+            </table>
+
+            <div style="margin-top: 30px; text-align: right;">
+                <button class="save-btn" onclick="saveAllMarks()">💾 Save All Marks to Database</button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('active'); }
+
+        const students = JSON.parse(localStorage.getItem('grade7C_data')) || [];
+        const subjects = ['math', 'science', 'tech', 'english', 'he', 'ss', 'arts', 'zl'];
+
+        function calculateGrade(avg) {
+            if (avg >= 75) return { g: 'ONE', c: '#27ae60' };
+            if (avg >= 60) return { g: 'TWO', c: '#2ecc71' };
+            if (avg >= 50) return { g: 'THREE', c: '#f1c40f' };
+            if (avg >= 40) return { g: 'FOUR', c: '#e67e22' };
+            return { g: 'E', c: '#e74c3c' };
+        }
+
+        function updateRow(id) {
+            let total = 0;
+            subjects.forEach(sub => {
+                const val = parseFloat(document.getElementById(`${sub}-${id}`).value) || 0;
+                total += val;
+            });
+
+            const avg = total / subjects.length;
+            const grade = calculateGrade(avg);
+            
+            document.getElementById(`total-${id}`).innerText = total.toFixed(0);
+            const gBadge = document.getElementById(`grade-${id}`);
+            gBadge.innerText = grade.g;
+            gBadge.style.backgroundColor = grade.c;
+            
+            updateClassMean();
+        }
+
+        function updateClassMean() {
+            let grandTotal = 0;
+            students.forEach(s => {
+                subjects.forEach(sub => {
+                    grandTotal += parseFloat(document.getElementById(`${sub}-${s.id}`).value) || 0;
+                });
+            });
+            
+            const mean = students.length > 0 ? (grandTotal / (students.length * subjects.length)).toFixed(1) : 0;
+            document.getElementById('mean-display').innerText = `Class Overall Mean: ${mean}%`;
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('marks-body');
+            if (students.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="11">No learners found. Please enroll students first.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = students.map(s => {
+                const m = s.marks || {};
+                let rowTotal = 0;
+                subjects.forEach(sub => rowTotal += (parseFloat(m[sub]) || 0));
+                const avg = rowTotal / subjects.length;
+                const grade = calculateGrade(avg);
+
+                return `
+                    <tr>
+                        <td class="name-cell">${s.name}</td>
+                        ${subjects.map(sub => `
+                            <td><input type="number" id="${sub}-${s.id}" value="${m[sub] || 0}" min="0" max="100" oninput="updateRow(${s.id})"></td>
+                        `).join('')}
+                        <td class="total-cell" id="total-${s.id}">${rowTotal.toFixed(0)}</td>
+                        <td><span id="grade-${s.id}" class="grade-badge" style="background:${grade.c}; color:white;">${grade.g}</span></td>
+                    </tr>
+                `;
+            }).join('');
+            updateClassMean();
+        }
+
+        function saveAllMarks() {
+            students.forEach(s => {
+                s.marks = s.marks || {};
+                subjects.forEach(sub => {
+                    s.marks[sub] = document.getElementById(`${sub}-${s.id}`).value;
+                });
+            });
+            localStorage.setItem('grade7C_data', JSON.stringify(students));
+            alert("✅ Success: All subject marks have been saved to the database.");
+        }
+
+        window.onload = renderTable;
+    </script>
+</body>
+</html>

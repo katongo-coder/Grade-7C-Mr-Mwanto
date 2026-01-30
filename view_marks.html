@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>View Results | Grade 7C System</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        :root { --primary: #2c3e50; --accent: #3498db; --light: #f4f7f6; --success: #27ae60; --danger: #e74c3c; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--light); margin: 0; display: flex; }
+        
+        .sidebar { position: fixed; left: -260px; top: 0; height: 100%; width: 250px; background: var(--primary); color: white; transition: 0.3s; z-index: 100; padding-top: 60px; }
+        .sidebar.active { left: 0; }
+        .sidebar ul { list-style: none; padding: 0; }
+        .sidebar li a { padding: 15px 25px; color: white; text-decoration: none; display: block; border-bottom: 1px solid #34495e; }
+        .sidebar li a:hover { background: var(--accent); }
+        .menu-toggle { position: fixed; top: 20px; left: 20px; z-index: 101; background: var(--primary); color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; }
+
+        .content { flex: 1; padding: 40px; transition: 0.3s; width: 100%; margin-left: 0; }
+        .sidebar.active ~ .content { margin-left: 250px; }
+        .container { max-width: 1000px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        
+        .performance-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
+        .perf-card { padding: 20px; border-radius: 8px; border: 1px solid #eee; }
+        .top-performers { border-left: 5px solid var(--success); background: #f0fff4; }
+        .bottom-performers { border-left: 5px solid var(--danger); background: #fff5f5; }
+
+        .results-table { width: 100%; border-collapse: collapse; }
+        .results-table th { background: var(--primary); color: white; padding: 12px; border: 1px solid #ddd; text-align: left; }
+        .results-table td { padding: 12px; border: 1px solid #eee; }
+        
+        .summary-row { background: #f1f4f9; font-weight: bold; color: var(--primary); border-top: 2px solid var(--primary); }
+        .grade-pill { padding: 3px 10px; border-radius: 20px; font-weight: bold; font-size: 11px; color: white; }
+        
+        @media print { 
+            @page { size: portrait; }
+            .sidebar, .menu-toggle, .btn-action, .performance-grid { display: none !important; } 
+            .content { margin: 0; padding: 0; }
+            .container { box-shadow: none; max-width: 100%; }
+            .results-table th { background-color: #2c3e50 !important; color: white !important; -webkit-print-color-adjust: exact; }
+            .summary-row { background-color: #f1f4f9 !important; -webkit-print-color-adjust: exact; }
+        }
+    </style>
+</head>
+<body>
+
+    <button class="menu-toggle" onclick="toggleSidebar()">☰ Menu</button>
+    <nav class="sidebar" id="sidebar">
+        <ul>
+            <li><a href="dashboard.html">🏠 Dashboard</a></li>
+                <li><a href="enrollment.html">👥 Grade 7 Enrollment</a></li>
+                <li><a href="daily_register.html">📝 Daily Register</a></li>
+                <li><a href="mark_entry.html">📊 Enter Marks 2 Subjects</a></li>
+                <li><a href="view_marks.html">📜 View Results 2 Subjects</a></li>
+                <li><a href="daily_attendance_list.html" style="background: #34495e;">📂 Termly Attendance</a></li>
+                <li><a href="mark_entry_all.html">📂 Enter All Subjects</a></li>
+                <li><a href="all_subject_results.html">📂 View All Subjects</a></li>
+                <li><a href="term_attendance.html">📂 Term Attendance</a></li>
+                <li><a href="#" onclick="logout()" style="color: var(--danger);">🚪 Logout</a></li>
+        </ul>
+    </nav>
+
+    <main class="content">
+        <div class="container">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+                <h1>Subject Performance Report - Grade 7C</h1>
+                <button class="btn-action" onclick="window.print()" style="padding:10px 20px; background:var(--primary); color:white; border:none; border-radius:5px; cursor:pointer;">🖨️ Print Results</button>
+            </div>
+
+            <div class="performance-grid">
+                <div class="perf-card top-performers">
+                    <h3 style="margin-top:0; color:var(--success)">🌟 Top 3 Performers</h3>
+                    <div id="top-list"></div>
+                </div>
+                <div class="perf-card bottom-performers">
+                    <h3 style="margin-top:0; color:var(--danger)">⚠️ Needs Support (Below 40%)</h3>
+                    <div id="bottom-list"></div>
+                </div>
+            </div>
+
+            <table class="results-table" id="results-table">
+                <thead>
+                    <tr>
+                        <th>Learner Name</th>
+                        <th>Maths</th>
+                        <th>Z.L</th>
+                        <th>Average</th>
+                        <th>Grade</th>
+                    </tr>
+                </thead>
+                <tbody id="results-body"></tbody>
+                <tfoot id="results-foot"></tfoot>
+            </table>
+        </div>
+    </main>
+
+    <script>
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('active'); }
+
+        function getGrade(score) {
+            if (score >= 85) return { g: 'ONE', c: '#27ae60' };
+            if (score >= 70) return { g: 'TWO', c: '#3498db' };
+            if (score >= 50) return { g: 'THREE', c: '#f39c12' };
+            if (score >= 40) return { g: 'FOUR', c: '#e67e22' };
+            return { g: 'E', c: '#e74c3c' };
+        }
+
+        function loadResults() {
+            const students = JSON.parse(localStorage.getItem('grade7C_data')) || [];
+            const tbody = document.getElementById('results-body');
+            const tfoot = document.getElementById('results-foot');
+            
+            let stats = {
+                boys: { maths: 0, zl: 0, avg: 0, count: 0 },
+                girls: { maths: 0, zl: 0, avg: 0, count: 0 }
+            };
+
+            let scoredStudents = students.map(s => {
+                const m = s.marks || { maths: 0, zl: 0 };
+                const s_maths = parseFloat(m.maths) || 0;
+                const s_zl = parseFloat(m.zl) || 0;
+                const s_avg = (s_maths + s_zl) / 2;
+                
+                const isBoy = (s.gender && s.gender.toLowerCase() === 'boy');
+                const target = isBoy ? stats.boys : stats.girls;
+                
+                target.maths += s_maths;
+                target.zl += s_zl;
+                target.avg += s_avg;
+                target.count++;
+
+                return { ...s, avg: s_avg || 0, marks: { maths: s_maths, zl: s_zl } };
+            });
+
+            tbody.innerHTML = scoredStudents.map(s => {
+                const grade = getGrade(s.avg);
+                return `
+                    <tr>
+                        <td><strong>${s.name}</strong></td>
+                        <td>${s.marks.maths}%</td>
+                        <td>${s.marks.zl}%</td>
+                        <td style="font-weight:bold;">${s.avg.toFixed(1)}%</td>
+                        <td><span class="grade-pill" style="background:${grade.c}">${grade.g}</span></td>
+                    </tr>
+                `;
+            }).join('');
+
+            const calcMean = (sum, count) => count > 0 ? (sum / count).toFixed(1) : "0.0";
+            
+            const totalCount = stats.boys.count + stats.girls.count;
+            const grandTotal = {
+                maths: calcMean(stats.boys.maths + stats.girls.maths, totalCount),
+                zl: calcMean(stats.boys.zl + stats.girls.zl, totalCount),
+                avg: calcMean(stats.boys.avg + stats.girls.avg, totalCount)
+            };
+
+            // Comprehensive Footer Logic
+            tfoot.innerHTML = `
+                <tr class="summary-row">
+                    <td>Total Boys Average (${stats.boys.count})</td>
+                    <td>${calcMean(stats.boys.maths, stats.boys.count)}%</td>
+                    <td>${calcMean(stats.boys.zl, stats.boys.count)}%</td>
+                    <td>${calcMean(stats.boys.avg, stats.boys.count)}%</td>
+                    <td>-</td>
+                </tr>
+                <tr class="summary-row">
+                    <td>Total Girls Average (${stats.girls.count})</td>
+                    <td>${calcMean(stats.girls.maths, stats.girls.count)}%</td>
+                    <td>${calcMean(stats.girls.zl, stats.girls.count)}%</td>
+                    <td>${calcMean(stats.girls.avg, stats.girls.count)}%</td>
+                    <td>-</td>
+                </tr>
+                <tr class="summary-row" style="background: #e1e8f0 !important;">
+                    <td>GRAND CLASS AVERAGE</td>
+                    <td>${grandTotal.maths}%</td>
+                    <td>${grandTotal.zl}%</td>
+                    <td>${grandTotal.avg}%</td>
+                    <td>-</td>
+                </tr>
+            `;
+
+            scoredStudents.sort((a, b) => b.avg - a.avg);
+            document.getElementById('top-list').innerHTML = scoredStudents.slice(0, 3).map((s, i) => 
+                `<div>${i+1}. ${s.name} - <strong>${s.avg.toFixed(1)}%</strong></div>`
+            ).join('') || "No data available";
+
+            const supportNeeded = scoredStudents.filter(s => s.avg < 40);
+            document.getElementById('bottom-list').innerHTML = supportNeeded.map(s => 
+                `<div>• ${s.name} (Avg: ${s.avg.toFixed(1)}%)</div>`
+            ).join('') || "None - All students passing!";
+        }
+
+        window.onload = loadResults;
+    </script>
+</body>
+</html>
